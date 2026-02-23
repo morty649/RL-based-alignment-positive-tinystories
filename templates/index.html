@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Positive TinyStories GPT | RLHF Demo</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(to bottom, #e0f2fe, #f8fafc);
+}
+
+.highlight {
+    background-color: #fef08a;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+#loader {
+    border: 4px solid #e5e7eb;
+    border-top: 4px solid #6366f1;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+</head>
+
+<body class="text-slate-800">
+
+<div class="max-w-5xl mx-auto px-4 py-12">
+
+<!-- HEADER -->
+<header class="text-center mb-12">
+    <h1 class="text-5xl font-bold text-slate-900 tracking-tight">
+        Positive TinyStories GPT
+    </h1>
+    <p class="mt-4 text-lg text-slate-600">
+        Reinforcement Learning Alignment Pipeline
+        Pretraining → SFT → Policy Gradient RL
+    </p>
+    <p class="mt-2 text-sm text-slate-500">
+        Model Size: 0.81M Params | Block Size: 64 | Char-Level GPT
+    </p>
+</header>
+
+<!-- EXPLANATION PANEL -->
+<div class="bg-white p-6 rounded-xl shadow mb-10 border">
+    <h2 class="font-semibold text-lg mb-3 text-indigo-600">What You Are Seeing</h2>
+    <ul class="text-sm space-y-2 text-slate-700">
+        <li>• Left: GPT trained normally on TinyStories.</li>
+        <li>• Right: Same GPT aligned using Reinforcement Learning with Sentiment Reward.</li>
+        <li>• RL Objective: Maximize positivity while minimizing KL divergence.</li>
+        <li>• Loss = −E[reward × log_prob] + β KL(policy || reference)</li>
+    </ul>
+</div>
+
+<!-- INPUT -->
+<div class="bg-white p-6 rounded-xl shadow mb-8">
+    <label class="block font-medium mb-2">Enter Prompt</label>
+    <textarea id="prompt" rows="3"
+        class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+        placeholder="e.g., A lonely robot found a flower..."></textarea>
+
+    <button id="generate-btn"
+        class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition">
+        Generate Story
+    </button>
+</div>
+
+<!-- LOADER -->
+<div id="loader-container" class="hidden flex flex-col items-center mb-6">
+    <div id="loader"></div>
+    <p class="mt-3 text-slate-500">Generating...</p>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="hidden grid md:grid-cols-2 gap-6">
+
+    <div class="bg-sky-50 p-6 rounded-xl shadow border">
+        <h3 class="text-xl font-semibold mb-4 text-sky-700">
+            Pretrained GPT
+        </h3>
+        <div class="text-xs mb-2 text-slate-500">
+            Positivity Score: <span id="pre_score">0</span>
+        </div>
+        <pre id="pretrained_output"
+            class="whitespace-pre-wrap font-sans text-slate-700"></pre>
+    </div>
+
+    <div class="bg-teal-50 p-6 rounded-xl shadow border">
+        <h3 class="text-xl font-semibold mb-4 text-teal-700">
+            RL-Aligned GPT
+        </h3>
+        <div class="text-xs mb-2 text-slate-500">
+            Positivity Score: <span id="rl_score">0</span>
+        </div>
+        <pre id="rl_output"
+            class="whitespace-pre-wrap font-sans text-slate-700"></pre>
+    </div>
+
+</div>
+
+<footer class="text-center mt-16 text-slate-500 text-sm">
+    Built by <span class="font-semibold text-indigo-600">Maruthi Enugula</span>  
+    
+</footer>
+
+</div>
+
+<script>
+const generateBtn = document.getElementById('generate-btn');
+const promptInput = document.getElementById('prompt');
+const results = document.getElementById('results');
+const loader = document.getElementById('loader-container');
+const pretrainedOutput = document.getElementById('pretrained_output');
+const rlOutput = document.getElementById('rl_output');
+const preScore = document.getElementById('pre_score');
+const rlScore = document.getElementById('rl_score');
+
+const positiveWords = [
+"like","liked","love","loved","happy","good","great","amazing","wonderful",
+"beautiful","excellent","nice","best","awesome","fantastic","fun",
+"enjoy","enjoyed","friendly","kind","sweet","warm","smile","laughed","excited"
+];
+
+function computeScore(text) {
+    let count = 0;
+    positiveWords.forEach(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'gi');
+        const matches = text.match(regex);
+        if (matches) count += matches.length;
+    });
+    return count;
+}
+
+function highlightWords(text) {
+    const regex = new RegExp(`\\b(${positiveWords.join('|')})\\b`, 'gi');
+    return text.replace(regex, match =>
+        `<span class="highlight">${match}</span>`
+    );
+}
+
+async function generateText() {
+    const prompt = promptInput.value.trim();
+    if (!prompt) return;
+
+    generateBtn.disabled = true;
+    loader.classList.remove('hidden');
+    results.classList.add('hidden');
+
+    try {
+        const response = await fetch('/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: prompt,
+                max_tokens: 300,
+                temperature: 0.8,
+                top_k: 30
+            })
+        });
+
+        const data = await response.json();
+
+        const preText = data.pretrained_output;
+        const rlText = data.rl_output;
+
+        pretrainedOutput.innerHTML = highlightWords(preText);
+        rlOutput.innerHTML = highlightWords(rlText);
+
+        preScore.innerText = computeScore(preText);
+        rlScore.innerText = computeScore(rlText);
+
+        results.classList.remove('hidden');
+
+    } catch (error) {
+        alert("Error generating text.");
+    } finally {
+        loader.classList.add('hidden');
+        generateBtn.disabled = false;
+    }
+}
+
+generateBtn.addEventListener('click', generateText);
+
+promptInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        generateText();
+    }
+});
+</script>
+
+</body>
+</html>
