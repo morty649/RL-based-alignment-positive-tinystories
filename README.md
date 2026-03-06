@@ -10,7 +10,7 @@ Instead, alignment is performed using an automated sentiment-based reward.
 
 # Summary
 
-We train a small GPT model (~1M parameters) using a three-stage pipeline:
+I trained a small GPT model (~1M parameters) using a three-stage pipeline:
 
 Pretraining
 
