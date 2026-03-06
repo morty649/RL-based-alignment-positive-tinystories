@@ -1,5 +1,10 @@
 # RL-Based Alignment on a Small GPT Model
 
+Live at : 
+  https://huggingface.co/spaces/morty649/positive-tinystories-gpt
+
+  try it out for yourself !!
+
 This repository implements a controlled reinforcement learning–based alignment experiment on a small character-level GPT model trained on TinyStories.
 
 The goal is to study how policy gradient methods with KL regularization influence generative behavior under an automated reward signal.
@@ -72,7 +77,7 @@ Qualitatively, the RL-aligned model produces outputs with higher measured sentim
 
 Behavioral differences can be explored interactively:
 
-  https://huggingface.co/spaces/morty649/positive-tinystories-gpt
+
 
 # Installation
 git clone https://github.com/morty649/RL-based-alignment-positive-tinystories.git
